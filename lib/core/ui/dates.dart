@@ -16,5 +16,22 @@ abstract final class Dates {
     return DateTime(n.year, n.month, n.day);
   }
 
+  /// Primer día del mes de [date]: así se representa un mes en la app.
+  static DateTime monthOf(DateTime date) => DateTime(date.year, date.month);
+
+  /// Mes para la API: `2026-11`.
+  static String monthToApi(DateTime month) => '${month.year.toString().padLeft(4, '0')}-${_two(month.month)}';
+
+  /// `noviembre de 2026`.
+  static String formatMonth(DateTime month) => '${_months[month.month - 1]} de ${month.year}';
+
+  /// Mes siguiente (o anterior con [delta] negativo).
+  static DateTime addMonths(DateTime month, int delta) => DateTime(month.year, month.month + delta);
+
+  static const _months = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', //
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+
   static String _two(int value) => value.toString().padLeft(2, '0');
 }

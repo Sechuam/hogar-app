@@ -139,7 +139,8 @@ class _TaskFormState extends State<_TaskForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // Con scroll: en pantallas bajas o con el teclado abierto el formulario no cabe.
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
       child: Form(
         key: _form,

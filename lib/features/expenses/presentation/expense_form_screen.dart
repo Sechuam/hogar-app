@@ -103,7 +103,9 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider(_id));
     final me = ref.watch(sessionProvider).value?.id;
-    final currency = ref.watch(householdProvider(_id)).value?.currency ?? 'EUR';
+    final household = ref.watch(householdProvider(_id)).value;
+    final currency = household?.currency ?? 'EUR';
+    final proportional = household?.splitPolicy == 'PROPORTIONAL';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nuevo gasto')),
@@ -162,7 +164,13 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                 ),
                 const SizedBox(height: 12),
                 InputDecorator(
-                  decoration: InputDecoration(labelText: 'Fecha', errorText: _fieldErrors['date']),
+                  decoration: InputDecoration(
+                    labelText: 'Fecha',
+                    errorText: _fieldErrors['date'],
+                    helperText: proportional
+                        ? 'Se reparte según los ingresos de ${Dates.formatMonth(Dates.monthOf(_date))}'
+                        : null,
+                  ),
                   child: InkWell(
                     onTap: _pickDate,
                     child: Row(

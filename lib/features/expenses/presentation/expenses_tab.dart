@@ -194,7 +194,7 @@ class _ExpenseDetails extends StatelessWidget {
     final theme = Theme.of(context);
     final policy = expense.splitPolicyApplied == 'PROPORTIONAL' ? 'proporcional a ingresos' : 'a partes iguales';
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,

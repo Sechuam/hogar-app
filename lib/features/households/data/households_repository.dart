@@ -131,6 +131,10 @@ class HouseholdsRepository {
   Future<PlanInfo> plan(String householdId) async =>
       PlanInfo.fromJson(await _api.get('/api/households/$householdId/plan') as Json);
 
+  /// Cambia la política de reparto de los gastos nuevos (solo OWNER; los ya creados no cambian).
+  Future<Household> updateSplitPolicy(String householdId, String splitPolicy) async =>
+      Household.fromJson(await _api.patch('/api/households/$householdId', body: {'splitPolicy': splitPolicy}) as Json);
+
   Future<void> leave(String householdId) => _api.post('/api/households/$householdId/leave');
 }
 

@@ -34,8 +34,7 @@ desarrollo, y la API no usa cookies (sin CSRF).
 ## A-005 · Alcance de la primera versión — Aceptada
 Incluye: registro y login con email, hogares (crear, unirse con código, invitar), plan y uso, gastos
 (listar, crear, borrar), balances con pagos sugeridos y registro del pago, tareas (listar, crear,
-completar). Fuera por ahora: login con Google (necesita client IDs de cada plataforma), ingresos y
-reparto proporcional desde la app, facturas (cámara y ficheros), edición de gastos y notificaciones.
+completar). Fuera por ahora: login con Google (necesita client IDs de cada plataforma), facturas (cámara y ficheros), edición de gastos y notificaciones.
 
 ## A-006 · Tests de widgets contra una API falsa — Aceptada
 **Contexto:** los widgets dependen de providers que llaman a repositorios que llaman al `ApiClient`.
@@ -49,3 +48,10 @@ cada repositorio con mocktail — más rápidos de escribir, pero no detectan er
 En web, recargar `/#/households/<id>` pasa por `/splash` mientras se renueva la sesión. La redirección
 guarda la ruta en `?from=` y vuelve a ella; solo se aceptan rutas internas (empiezan por `/`, no por
 `//`, ni son `/splash` o `/login`) para que un enlace manipulado no saque de la app.
+
+## A-008 · Ingresos: los propios en detalle, los demás solo en el resumen — Aceptada
+**Contexto:** la API deja listar los ingresos de todo el hogar (transparencia del reparto).
+**Decisión:** la app muestra en detalle solo los ingresos propios (`userId` = yo) y, de los demás, el
+total del mes y su porcentaje (`/incomes/summary`), que es lo que usa el reparto proporcional. Ver la
+nómina concreta de un compañero de piso aporta poco y resulta invasivo. **Consecuencia:** si un hogar
+quisiera ver el detalle de todos, basta con quitar el filtro; la API ya lo permite.

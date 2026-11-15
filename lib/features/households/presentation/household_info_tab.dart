@@ -40,6 +40,10 @@ class HouseholdInfoTab extends ConsumerWidget {
             data: (p) => PlanCard(plan: p),
           ),
           const SizedBox(height: 16),
+          Text('Reparto de gastos', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (household.value case final h?) SplitPolicyCard(household: h),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(child: Text('Miembros', style: Theme.of(context).textTheme.titleMedium)),
@@ -148,6 +152,95 @@ class HouseholdInfoTab extends ConsumerWidget {
         showError(context, e);
       }
     }
+  }
+}
+
+/// Política de reparto de los gastos nuevos (la cambia el OWNER) y acceso a los ingresos.
+class SplitPolicyCard extends ConsumerStatefulWidget {
+  const SplitPolicyCard({super.key, required this.household});
+
+  final Household household;
+
+  @override
+  ConsumerState<SplitPolicyCard> createState() => _SplitPolicyCardState();
+}
+
+class _SplitPolicyCardState extends ConsumerState<SplitPolicyCard> {
+  bool _saving = false;
+
+  Future<void> _change(String policy) async {
+    final proportional = policy == 'PROPORTIONAL';
+    final ok = await confirm(
+      context,
+      title: proportional ? 'Reparto proporcional' : 'Reparto a partes iguales',
+      message:
+          '${proportional ? 'Cada gasto nuevo se repartirá según los ingresos de cada miembro en el mes del gasto.' : 'Cada gasto nuevo se repartirá a partes iguales.'}'
+          '\n\nLos gastos ya creados conservan su reparto.',
+      confirmLabel: 'Cambiar',
+    );
+    if (!ok) {
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final id = widget.household.id;
+      await ref.read(householdsRepositoryProvider).updateSplitPolicy(id, policy);
+      ref
+        ..invalidate(householdProvider(id))
+        ..invalidate(myHouseholdsProvider);
+    } catch (e) {
+      if (mounted) {
+        showError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = widget.household;
+    final proportional = h.splitPolicy == 'PROPORTIONAL';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'EQUAL', label: Text('A partes iguales'), icon: Icon(Icons.drag_handle)),
+                ButtonSegment(
+                  value: 'PROPORTIONAL',
+                  label: Text('Según ingresos'),
+                  icon: Icon(Icons.pie_chart_outline),
+                ),
+              ],
+              selected: {h.splitPolicy},
+              onSelectionChanged: h.isOwner && !_saving ? (s) => _change(s.single) : null,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              [
+                proportional
+                    ? 'Cada uno paga en proporción a sus ingresos del mes del gasto.'
+                    : 'Cada gasto se divide a partes iguales entre los miembros.',
+                if (!h.isOwner) 'Solo el propietario puede cambiarlo.',
+              ].join(' '),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/households/${h.id}/incomes'),
+              icon: const Icon(Icons.savings_outlined),
+              label: const Text('Ingresos del hogar'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
