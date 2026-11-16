@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ui/async_view.dart';
+import '../../../core/ui/theme_mode.dart';
 import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
 import '../data/households_repository.dart';
@@ -27,7 +28,10 @@ class HouseholdsScreen extends ConsumerWidget {
           PopupMenuButton<String>(
             tooltip: 'Cuenta',
             icon: user == null ? null : MemberAvatar(id: user.id, name: user.displayName, radius: 16),
-            onSelected: (_) => ref.read(sessionProvider.notifier).logout(),
+            onSelected: (value) => switch (value) {
+              'theme' => showThemeModePicker(context),
+              _ => ref.read(sessionProvider.notifier).logout(),
+            },
             itemBuilder: (context) => [
               PopupMenuItem(
                 enabled: false,
@@ -38,6 +42,14 @@ class HouseholdsScreen extends ConsumerWidget {
                 ),
               ),
               const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'theme',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.contrast),
+                  title: Text('Apariencia'),
+                ),
+              ),
               const PopupMenuItem(
                 value: 'logout',
                 child: ListTile(

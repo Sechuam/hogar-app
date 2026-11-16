@@ -25,6 +25,7 @@ dinero**: solo registra y calcula.
   propietario elige si los gastos se reparten a partes iguales o según ingresos.
 - Saldos y pagos sugeridos para quedar en paz; "Registrar" anota el pago tras confirmarlo.
 - Tareas: pendientes, crear (con periodicidad y asignado) y completar.
+- Apariencia: tema del sistema, claro u oscuro (menú de la cuenta); se guarda en el dispositivo.
 
 Fuera de esta versión: login con Google y edición de gastos ([A-005](docs/DECISIONS.md)).
 
