@@ -67,24 +67,40 @@ class ErrorRetry extends StatelessWidget {
 }
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.icon, required this.message, this.action});
+  const EmptyState({super.key, required this.icon, required this.message, this.title, this.action});
 
   final IconData icon;
+  final String? title;
   final String message;
   final Widget? action;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
-            if (action != null) ...[const SizedBox(height: 16), action!],
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(color: scheme.secondaryContainer, shape: BoxShape.circle),
+              child: Icon(icon, size: 40, color: scheme.onSecondaryContainer),
+            ),
+            const SizedBox(height: 20),
+            if (title != null) ...[
+              Text(title!, textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+            ],
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            if (action != null) ...[const SizedBox(height: 20), action!],
           ],
         ),
       ),

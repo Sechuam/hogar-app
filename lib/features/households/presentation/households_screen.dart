@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ui/async_view.dart';
+import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
 import '../data/households_repository.dart';
 
@@ -24,10 +25,27 @@ class HouseholdsScreen extends ConsumerWidget {
             onPressed: () => _join(context, ref),
           ),
           PopupMenuButton<String>(
+            tooltip: 'Cuenta',
+            icon: user == null ? null : MemberAvatar(id: user.id, name: user.displayName, radius: 16),
             onSelected: (_) => ref.read(sessionProvider.notifier).logout(),
             itemBuilder: (context) => [
-              PopupMenuItem(enabled: false, child: Text(user?.email ?? '')),
-              const PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
+              PopupMenuItem(
+                enabled: false,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(user?.displayName ?? ''),
+                  subtitle: Text(user?.email ?? ''),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.logout),
+                  title: Text('Cerrar sesión'),
+                ),
+              ),
             ],
           ),
         ],
@@ -42,26 +60,40 @@ class HouseholdsScreen extends ConsumerWidget {
         child: AsyncView(
           value: households,
           onRetry: () => ref.invalidate(myHouseholdsProvider),
-          data: (list) => list.isEmpty
-              ? ListView(
-                  children: [
-                    EmptyState(
-                      icon: Icons.house_outlined,
-                      message: 'Aún no tienes ningún hogar.\nCrea uno o únete con el código que te pasen.',
-                      action: OutlinedButton.icon(
-                        onPressed: () => _join(context, ref),
-                        icon: const Icon(Icons.vpn_key_outlined),
-                        label: const Text('Tengo un código'),
-                      ),
+          data: (list) => ContentWidth(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 104),
+              children: [
+                if (user != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                    child: Text(
+                      'Hola, ${user.displayName.split(' ').first}',
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ],
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-                  itemCount: list.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) => _HouseholdCard(household: list[i]),
-                ),
+                  ),
+                if (list.isEmpty)
+                  EmptyState(
+                    icon: Icons.house_outlined,
+                    title: 'Aún no tienes ningún hogar',
+                    message: 'Crea uno para tu piso o tu pareja, o únete con el código que te pasen.',
+                    action: OutlinedButton.icon(
+                      onPressed: () => _join(context, ref),
+                      icon: const Icon(Icons.vpn_key_outlined),
+                      label: const Text('Tengo un código'),
+                    ),
+                  )
+                else ...[
+                  SectionHeader(list.length == 1 ? 'Tu hogar' : 'Tus ${list.length} hogares'),
+                  for (final household in list)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _HouseholdCard(household: household),
+                    ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -118,16 +150,110 @@ class _HouseholdCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (background, foreground) = MemberAvatar.colorsFor(household.id, theme.brightness);
     final members = household.memberCount == 1 ? '1 miembro' : '${household.memberCount} miembros';
+    final premium = household.plan == 'PREMIUM';
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: const CircleAvatar(child: Icon(Icons.home_outlined)),
-        title: Text(household.name),
-        subtitle: Text('$members · ${household.isOwner ? 'Propietario' : 'Miembro'}'),
-        trailing: Chip(label: Text(household.plan)),
+      child: InkWell(
         onTap: () => context.go('/households/${household.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(16)),
+                child: Icon(Icons.home_rounded, color: foreground, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            household.name,
+                            style: theme.textTheme.titleMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _PlanBadge(premium: premium, label: household.plan),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        _Info(icon: Icons.group_outlined, text: members),
+                        _Info(
+                          icon: household.isOwner ? Icons.star_outline_rounded : Icons.person_outline,
+                          text: household.isOwner ? 'Propietario' : 'Miembro',
+                        ),
+                        _Info(
+                          icon: household.splitPolicy == 'PROPORTIONAL'
+                              ? Icons.pie_chart_outline
+                              : Icons.drag_handle_rounded,
+                          text: household.splitPolicy == 'PROPORTIONAL' ? 'Según ingresos' : 'A partes iguales',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _PlanBadge extends StatelessWidget {
+  const _PlanBadge({required this.premium, required this.label});
+
+  final bool premium;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background = premium ? scheme.tertiaryContainer : scheme.surfaceContainerHighest;
+    final foreground = premium ? scheme.onTertiaryContainer : scheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: foreground, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _Info extends StatelessWidget {
+  const _Info({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(text, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
+      ],
     );
   }
 }

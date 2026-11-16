@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/ui/async_view.dart';
 import '../../../core/ui/dates.dart';
+import '../../../core/ui/widgets.dart';
 import '../../households/data/households_repository.dart';
 import '../../households/presentation/household_screen.dart';
 import '../data/tasks_repository.dart';
@@ -30,17 +31,58 @@ class TasksTab extends ConsumerWidget {
         child: AsyncView(
           value: tasks,
           onRetry: () => ref.invalidate(pendingTasksProvider(householdId)),
-          data: (list) => list.isEmpty
-              ? ListView(
-                  children: const [EmptyState(icon: Icons.task_alt, message: 'No hay tareas pendientes.')],
-                )
-              : ListView(
-                  padding: const EdgeInsets.only(bottom: 96),
-                  children: [
-                    for (final task in list)
-                      _TaskTile(task: task, members: members, onComplete: () => _complete(context, ref, task)),
-                  ],
-                ),
+          data: (list) {
+            if (list.isEmpty) {
+              return ListView(
+                children: [
+                  EmptyState(
+                    icon: Icons.task_alt,
+                    title: 'Nada pendiente',
+                    message: 'Apunta las tareas de casa; las periódicas se repiten solas al completarlas.',
+                    action: FilledButton.icon(
+                      onPressed: () => _create(context, ref, members),
+                      icon: const Icon(Icons.add_task),
+                      label: const Text('Nueva tarea'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final today = Dates.today();
+            final groups = <String, List<HouseTask>>{'Vencidas': [], 'Para hoy': [], 'Próximas': [], 'Sin fecha': []};
+            for (final task in list) {
+              final due = task.dueDate;
+              final group = task.overdue || (due != null && due.isBefore(today))
+                  ? 'Vencidas'
+                  : due == null
+                  ? 'Sin fecha'
+                  : due == today
+                  ? 'Para hoy'
+                  : 'Próximas';
+              groups[group]!.add(task);
+            }
+            return ContentWidth(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
+                children: [
+                  for (final MapEntry(key: title, value: tasks) in groups.entries)
+                    if (tasks.isNotEmpty) ...[
+                      SectionHeader('$title · ${tasks.length}'),
+                      Card(
+                        child: Column(
+                          children: [
+                            for (final (i, task) in tasks.indexed) ...[
+                              if (i > 0) const Divider(indent: 64),
+                              _TaskTile(task: task, members: members, onComplete: () => _complete(context, ref, task)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -95,22 +137,39 @@ class _TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final assignee = task.assigneeId;
     final details = [
-      if (task.assigneeId != null) 'Para ${memberName(members, task.assigneeId!)}',
-      if (task.dueDate != null) 'vence el ${Dates.format(task.dueDate!)}',
+      if (task.dueDate != null) Dates.shortDay(task.dueDate!),
       if (task.recurrence != Recurrence.none) task.recurrence.label.toLowerCase(),
     ];
     return ListTile(
-      leading: Checkbox(value: false, onChanged: (_) => onComplete()),
+      leading: Checkbox(
+        value: false,
+        shape: const CircleBorder(),
+        side: BorderSide(color: task.overdue ? scheme.error : scheme.outline, width: 2),
+        onChanged: (_) => onComplete(),
+      ),
       title: Text(task.title),
-      subtitle: details.isEmpty ? null : Text(details.join(' · ')),
-      trailing: task.overdue
-          ? Chip(
-              label: const Text('Vencida'),
-              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
-              backgroundColor: Theme.of(context).colorScheme.errorContainer,
-            )
-          : null,
+      subtitle: details.isEmpty
+          ? null
+          : Row(
+              children: [
+                if (task.recurrence != Recurrence.none) ...[
+                  Icon(Icons.repeat_rounded, size: 14, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    details.join(' · '),
+                    style: TextStyle(color: task.overdue ? scheme.error : null),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+      trailing: assignee == null ? null : MemberAvatar(id: assignee, name: memberName(members, assignee), radius: 16),
     );
   }
 }

@@ -6,6 +6,7 @@ import '../../../core/api/api_exception.dart';
 import '../../../core/money/money.dart';
 import '../../../core/ui/async_view.dart';
 import '../../../core/ui/dates.dart';
+import '../../../core/ui/widgets.dart';
 import '../../households/data/households_repository.dart';
 import '../../households/presentation/household_screen.dart';
 import '../data/incomes_repository.dart';
@@ -92,80 +93,80 @@ class _IncomesScreenState extends ConsumerState<IncomesScreen> {
           _invalidate();
           await ref.read(myIncomesProvider(_id).future);
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          children: [
-            if (household != null && household.splitPolicy != 'PROPORTIONAL')
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.info_outline),
-                  title: Text('Este hogar reparte a partes iguales'),
-                  subtitle: Text('Los ingresos solo cuentan si el reparto es proporcional (en la pestaña Hogar).'),
-                ),
-              ),
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Mes anterior',
-                  onPressed: () => setState(() => _month = Dates.addMonths(_month, -1)),
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Expanded(
-                  child: Text(
-                    Dates.formatMonth(_month),
-                    key: const Key('month'),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
+        child: ContentWidth(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
+            children: [
+              if (household != null && household.splitPolicy != 'PROPORTIONAL')
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.info_outline),
+                    title: Text('Este hogar reparte a partes iguales'),
+                    subtitle: Text('Los ingresos solo cuentan si el reparto es proporcional (en la pestaña Hogar).'),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Mes siguiente',
-                  onPressed: () => setState(() => _month = Dates.addMonths(_month, 1)),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            AsyncView(
-              value: summary,
-              onRetry: () => ref.invalidate(incomeSummaryProvider((_id, _month))),
-              data: (s) => _SummaryCard(summary: s, members: members),
-            ),
-            const SizedBox(height: 24),
-            Text('Mis ingresos', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            AsyncView(
-              value: mine,
-              onRetry: () => ref.invalidate(myIncomesProvider(_id)),
-              data: (list) => list.isEmpty
-                  ? const EmptyState(
-                      icon: Icons.savings_outlined,
-                      message: 'Aún no has apuntado ingresos. Añade tu nómina como recurrente y contará cada mes.',
-                    )
-                  : Card(
-                      child: Column(
-                        children: [
-                          for (final income in list)
-                            ListTile(
-                              title: Text(income.concept),
-                              subtitle: Text(income.period),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(Money.format(income.amount, currency)),
-                                  IconButton(
-                                    tooltip: 'Borrar',
-                                    onPressed: () => _delete(income),
-                                    icon: const Icon(Icons.delete_outline),
-                                  ),
-                                ],
-                              ),
-                              onTap: () => _edit(income),
-                            ),
-                        ],
-                      ),
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Mes anterior',
+                    onPressed: () => setState(() => _month = Dates.addMonths(_month, -1)),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Expanded(
+                    child: Text(
+                      Dates.formatMonth(_month),
+                      key: const Key('month'),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-            ),
-          ],
+                  ),
+                  IconButton(
+                    tooltip: 'Mes siguiente',
+                    onPressed: () => setState(() => _month = Dates.addMonths(_month, 1)),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+              AsyncView(
+                value: summary,
+                onRetry: () => ref.invalidate(incomeSummaryProvider((_id, _month))),
+                data: (s) => _SummaryCard(summary: s, members: members),
+              ),
+              const SectionHeader('Mis ingresos'),
+              AsyncView(
+                value: mine,
+                onRetry: () => ref.invalidate(myIncomesProvider(_id)),
+                data: (list) => list.isEmpty
+                    ? const EmptyState(
+                        icon: Icons.savings_outlined,
+                        message: 'Aún no has apuntado ingresos. Añade tu nómina como recurrente y contará cada mes.',
+                      )
+                    : Card(
+                        child: Column(
+                          children: [
+                            for (final income in list)
+                              ListTile(
+                                title: Text(income.concept),
+                                subtitle: Text(income.period),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AmountText(income.amount, currency, style: Theme.of(context).textTheme.titleSmall),
+                                    IconButton(
+                                      tooltip: 'Borrar',
+                                      onPressed: () => _delete(income),
+                                      icon: const Icon(Icons.delete_outline),
+                                    ),
+                                  ],
+                                ),
+                                onTap: () => _edit(income),
+                              ),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -181,46 +182,65 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(child: Text('Total del hogar')),
-                Text(Money.format(summary.total, summary.currency), style: theme.textTheme.titleMedium),
-              ],
-            ),
-            if (summary.total == Decimal.zero)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Nadie tiene ingresos este mes: los gastos proporcionales se reparten a partes iguales.',
-                  style: theme.textTheme.bodySmall,
-                ),
+    final on = theme.colorScheme.onPrimaryContainer;
+    return HighlightCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Ingresos del hogar', style: theme.textTheme.labelLarge?.copyWith(color: on)),
+          const SizedBox(height: 4),
+          AmountText(summary.total, summary.currency, style: theme.textTheme.headlineMedium?.copyWith(color: on)),
+          if (summary.total == Decimal.zero)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Nadie tiene ingresos este mes: los gastos proporcionales se reparten a partes iguales.',
+                style: theme.textTheme.bodySmall?.copyWith(color: on),
               ),
-            const SizedBox(height: 8),
-            for (final m in summary.members)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            ),
+          const SizedBox(height: 8),
+          for (final m in summary.members)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  MemberAvatar(
+                    id: m.userId,
+                    name: memberName(members, m.userId, unknown: '…'),
+                    radius: 16,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: Text(memberName(members, m.userId, unknown: '…'))),
-                        Text('${Money.format(m.amount, summary.currency)} · ${_percent(m.percentage)}'),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                memberName(members, m.userId, unknown: '…'),
+                                style: TextStyle(color: on, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Text(
+                              '${Money.format(m.amount, summary.currency)} · ${_percent(m.percentage)}',
+                              style: TextStyle(color: on, fontFeatures: const [FontFeature.tabularFigures()]),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        LinearProgressIndicator(
+                          value: m.percentage.toDouble() / 100,
+                          color: on,
+                          backgroundColor: on.withValues(alpha: 0.15),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(value: m.percentage.toDouble() / 100),
-                  ],
-                ),
+                  ),
+                ],
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

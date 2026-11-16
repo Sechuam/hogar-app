@@ -10,6 +10,7 @@ dinero**: solo registra y calcula.
 | Estado / DI | Riverpod 3, sin generación de código |
 | Navegación | go_router, con redirección según la sesión |
 | HTTP | Dio, con renovación de sesión compartida ante 401 |
+| Interfaz | Material 3 con tema propio (claro y oscuro), componentes comunes en `core/ui` |
 | Dinero | `Decimal`; nunca `double`. Se envía a la API como texto (`"42.50"`) |
 | Tests | `flutter_test`; widgets probados contra una API falsa (sin mocks de repositorios) |
 
