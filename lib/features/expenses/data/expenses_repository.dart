@@ -49,6 +49,7 @@ class Expense {
     required this.splitPolicyApplied,
     required this.shares,
     required this.warnings,
+    this.hasInvoice = false,
   });
 
   factory Expense.fromJson(Json json) => Expense(
@@ -63,6 +64,7 @@ class Expense {
     splitPolicyApplied: json['splitPolicyApplied'] as String,
     shares: (json['shares'] as List).map((s) => Share.fromJson(s as Json)).toList(),
     warnings: (json['warnings'] as List? ?? const []).cast<String>(),
+    hasInvoice: json['hasInvoice'] as bool? ?? false,
   );
 
   final String id;
@@ -78,6 +80,9 @@ class Expense {
 
   /// Códigos de aviso de la API (p. ej. `PROPORTIONAL_FALLBACK_NO_INCOME`).
   final List<String> warnings;
+
+  /// Si tiene factura adjunta (opcional; la API lo indica en cada gasto).
+  final bool hasInvoice;
 
   /// Avisos en texto para la UI.
   List<String> get warningMessages => [
