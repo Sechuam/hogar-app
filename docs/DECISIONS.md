@@ -75,5 +75,23 @@ sustituyen. Las imágenes se previsualizan en la propia app; los PDF van directo
 PDF propio, que añadiría una dependencia pesada). La app comprueba el límite de 10 MB antes de subir,
 pero el tipo lo decide la API por el contenido. La factura se consulta al abrir la ficha del gasto
 (`/invoice/metadata`) y no en la lista, que haría una petición por gasto. Los errores se muestran en la
-ficha y no en un SnackBar, que quedaría tapado por la hoja modal. **Consecuencia:** la lista de gastos no
-indica qué gastos tienen factura; para eso la API tendría que incluirlo en `ExpenseResponse`.
+ficha y no en un SnackBar, que quedaría tapado por la hoja modal. **Consecuencia:** para marcar en la
+lista qué gastos tienen factura, la API añadió `hasInvoice` a `ExpenseResponse` (un icono en cada fila,
+sin peticiones extra).
+
+## A-011 · Movimiento y gráficos propios, sin librerías — Aceptada
+**Contexto:** la app era correcta pero plana: un círculo girando al cargar, cifras que aparecían de
+golpe y totales sin desglose visual.
+**Decisión:** piezas propias en `core/ui`: `Motion` (duraciones y curva comunes; respeta "reducir
+movimiento" del sistema), `Appear` (entrada escalonada de listas), `AnimatedAmount` (el importe cuenta
+hasta su valor), `SkeletonList` (esqueleto con brillo en la primera carga) y, en `charts.dart`,
+`SegmentBar` (reparto por categorías), `DivergingBar` (saldos a favor y en contra) y `StatTile`. No se
+usa una librería de gráficos: son barras sencillas y una dependencia más pesaría más que el código.
+Reglas: el dinero se anima en céntimos enteros (nunca `double`); los retrasos van dentro de la propia
+animación (`Interval`), no en temporizadores, para no dejar trabajo pendiente si el widget desaparece;
+y un estado animado se reinicia cuando el dato cambia aunque el widget sea el mismo (una tarea
+periódica completada vuelve con el mismo id y la fecha siguiente). Los botones flotantes viven en el
+`Scaffold` del hogar y cambian con la pestaña, para que el SnackBar los desplace en vez de taparlos.
+Completar una tarea puntual ofrece "Deshacer" (`/reopen`); una periódica no, porque ya ha generado la
+siguiente. **Consecuencia:** el aspecto sigue dependiendo solo de `core/ui`; los gráficos son
+decorativos y los importes exactos se muestran siempre en texto.
