@@ -22,11 +22,15 @@ void showMessage(BuildContext context, String message) {
 /// Pinta un [AsyncValue]: los datos (también mientras se recargan), el error con "Reintentar" o un
 /// indicador de carga.
 class AsyncView<T> extends StatelessWidget {
-  const AsyncView({super.key, required this.value, required this.data, required this.onRetry});
+  const AsyncView({super.key, required this.value, required this.data, required this.onRetry, this.loading});
 
   final AsyncValue<T> value;
   final Widget Function(T data) data;
   final VoidCallback onRetry;
+
+  /// Qué mostrar en la primera carga; por defecto, un indicador centrado. Las pantallas completas
+  /// pasan un [SkeletonList] con la forma de su contenido.
+  final Widget? loading;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +40,7 @@ class AsyncView<T> extends StatelessWidget {
     if (value.hasError) {
       return ErrorRetry(error: value.error!, onRetry: onRetry);
     }
-    return const Center(child: CircularProgressIndicator());
+    return loading ?? const Center(child: CircularProgressIndicator());
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ui/async_view.dart';
 import '../../../core/ui/theme_mode.dart';
+import '../../../core/ui/motion.dart';
 import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
 import '../data/households_repository.dart';
@@ -71,6 +72,7 @@ class HouseholdsScreen extends ConsumerWidget {
         onRefresh: () => ref.refresh(myHouseholdsProvider.future),
         child: AsyncView(
           value: households,
+          loading: const SkeletonList(highlight: false, cards: 2),
           onRetry: () => ref.invalidate(myHouseholdsProvider),
           data: (list) => ContentWidth(
             child: ListView(

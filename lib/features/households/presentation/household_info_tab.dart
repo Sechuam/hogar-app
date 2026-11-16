@@ -5,11 +5,12 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ui/async_view.dart';
 import '../../../core/ui/dates.dart';
+import '../../../core/ui/motion.dart';
 import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
 import '../data/households_repository.dart';
 
-/// Plan y uso, miembros, invitar y salir del hogar.
+/// Cabecera del hogar, miembros, reparto, plan y uso, invitar y salir del hogar.
 class HouseholdInfoTab extends ConsumerWidget {
   const HouseholdInfoTab({super.key, required this.householdId});
 
@@ -36,13 +37,7 @@ class HouseholdInfoTab extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            AsyncView(
-              value: plan,
-              onRetry: refresh,
-              data: (p) => PlanCard(plan: p),
-            ),
-            const SectionHeader('Reparto de gastos'),
-            if (household.value case final h?) SplitPolicyCard(household: h),
+            if (household.value case final h?) Appear(child: _HeaderCard(household: h)),
             SectionHeader(
               'Miembros',
               trailing: (household.value?.isOwner ?? false)
@@ -74,6 +69,14 @@ class HouseholdInfoTab extends ConsumerWidget {
                   ],
                 ),
               ),
+            ),
+            const SectionHeader('Reparto de gastos'),
+            if (household.value case final h?) SplitPolicyCard(household: h),
+            const SectionHeader('Plan'),
+            AsyncView(
+              value: plan,
+              onRetry: refresh,
+              data: (p) => PlanCard(plan: p),
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -335,6 +338,96 @@ class _Usage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           LinearProgressIndicator(value: ratio.clamp(0, 1), color: full ? Theme.of(context).colorScheme.error : null),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cabecera de la pestaña: el hogar, tu papel y quién vive en él.
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({required this.household});
+
+  final Household household;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final on = theme.colorScheme.onPrimaryContainer;
+    return HighlightCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.home_rounded, size: 30, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(household.name, style: theme.textTheme.headlineSmall?.copyWith(color: on)),
+                    Text(
+                      '${household.isOwner ? 'Eres propietario' : 'Eres miembro'} · ${household.currency}',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: on.withValues(alpha: 0.8)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Fact(
+                icon: Icons.group_outlined,
+                text: household.memberCount == 1 ? '1 miembro' : '${household.memberCount} miembros',
+              ),
+              _Fact(
+                icon: Icons.pie_chart_outline_rounded,
+                text: household.splitPolicy == 'PROPORTIONAL' ? 'Según ingresos' : 'A partes iguales',
+              ),
+              _Fact(icon: Icons.workspace_premium_outlined, text: 'Plan ${household.plan}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Fact extends StatelessWidget {
+  const _Fact({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final on = theme.colorScheme.onPrimaryContainer;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: on),
+          const SizedBox(width: 6),
+          Text(text, style: theme.textTheme.labelMedium?.copyWith(color: on)),
         ],
       ),
     );

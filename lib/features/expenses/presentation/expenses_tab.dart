@@ -5,7 +5,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/ui/async_view.dart';
+import '../../../core/ui/charts.dart';
 import '../../../core/ui/dates.dart';
+import '../../../core/ui/motion.dart';
 import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
 import '../../balances/data/balances_repository.dart';
@@ -65,16 +67,11 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     final plan = ref.watch(planProvider(_id)).value;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'new-expense',
-        onPressed: () => context.go('/households/$_id/expenses/new'),
-        icon: const Icon(Icons.add),
-        label: const Text('Gasto'),
-      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: AsyncView(
           value: first,
+          loading: const SkeletonList(),
           onRetry: () => ref.invalidate(expensesProvider(_id)),
           data: (page) {
             final pages = [page, ..._more];
@@ -106,25 +103,35 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
                 children: [
-                  if (month != null) _MonthCard(summary: month, currency: expenses.first.currency),
-                  for (final MapEntry(key: day, value: items) in byDay.entries) ...[
-                    SectionHeader(Dates.relativeDay(day)),
-                    Card(
+                  if (month != null)
+                    Appear(
+                      child: _MonthCard(summary: month, currency: expenses.first.currency),
+                    ),
+                  for (final (g, MapEntry(key: day, value: items)) in byDay.entries.indexed)
+                    Appear(
+                      index: g + 1,
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          for (final (i, expense) in items.indexed) ...[
-                            if (i > 0) const Divider(indent: 72),
-                            _ExpenseTile(
-                              expense: expense,
-                              members: members,
-                              mine: expense.paidBy == me,
-                              onTap: () => _details(expense, members),
+                          SectionHeader(Dates.relativeDay(day)),
+                          Card(
+                            child: Column(
+                              children: [
+                                for (final (i, expense) in items.indexed) ...[
+                                  if (i > 0) const Divider(indent: 72),
+                                  _ExpenseTile(
+                                    expense: expense,
+                                    members: members,
+                                    mine: expense.paidBy == me,
+                                    onTap: () => _details(expense, members),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
-                  ],
                   if (last.hasMore)
                     Padding(
                       padding: const EdgeInsets.all(16),
@@ -174,11 +181,17 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       return null;
     }
     final current = expenses.where((e) => !e.date.isBefore(start)).toList();
+    final byCategory = <ExpenseCategory, Decimal>{};
+    for (final e in current) {
+      byCategory.update(e.category, (sum) => sum + e.amount, ifAbsent: () => e.amount);
+    }
     return _MonthSummary(
       month: start,
       count: current.length,
       total: current.fold(Decimal.zero, (sum, e) => sum + e.amount),
       paidByMe: current.where((e) => e.paidBy == me).fold(Decimal.zero, (sum, e) => sum + e.amount),
+      // De mayor a menor: la barra y la leyenda empiezan por lo que más pesa.
+      byCategory: byCategory.entries.toList()..sort((a, b) => b.value.compareTo(a.value)),
     );
   }
 
@@ -255,12 +268,19 @@ Color categoryColor(ExpenseCategory category, Brightness brightness) {
 }
 
 class _MonthSummary {
-  const _MonthSummary({required this.month, required this.count, required this.total, required this.paidByMe});
+  const _MonthSummary({
+    required this.month,
+    required this.count,
+    required this.total,
+    required this.paidByMe,
+    required this.byCategory,
+  });
 
   final DateTime month;
   final int count;
   final Decimal total;
   final Decimal paidByMe;
+  final List<MapEntry<ExpenseCategory, Decimal>> byCategory;
 }
 
 class _MonthCard extends StatelessWidget {
@@ -283,16 +303,76 @@ class _MonthCard extends StatelessWidget {
             style: theme.textTheme.labelLarge?.copyWith(color: on),
           ),
           const SizedBox(height: 4),
-          AmountText(summary.total, currency, style: theme.textTheme.headlineMedium?.copyWith(color: on)),
-          const SizedBox(height: 8),
+          AnimatedAmount(summary.total, currency, style: theme.textTheme.headlineMedium?.copyWith(color: on)),
+          const SizedBox(height: 4),
           Text(
             '$count · has pagado ${Money.format(summary.paidByMe, currency)}',
             style: theme.textTheme.bodyMedium?.copyWith(color: on.withValues(alpha: 0.8)),
           ),
+          if (summary.total > Decimal.zero) ...[
+            const SizedBox(height: 16),
+            SegmentBar(
+              segments: [
+                for (final MapEntry(key: category, value: amount) in summary.byCategory)
+                  Segment(
+                    weight: (amount * Decimal.fromInt(100)).toBigInt().toInt(),
+                    color: categoryColor(category, theme.brightness),
+                    label: category.label,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 14,
+              runSpacing: 6,
+              children: [
+                for (final MapEntry(key: category, value: amount) in summary.byCategory.take(3))
+                  _Legend(
+                    color: categoryColor(category, theme.brightness),
+                    text: '${category.label} ${_percent(amount, summary.total)}',
+                    textColor: on,
+                  ),
+                if (summary.byCategory.length > 3)
+                  _Legend(
+                    color: on.withValues(alpha: 0.4),
+                    text: '+${summary.byCategory.length - 3} más',
+                    textColor: on,
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+/// Porcentaje entero de [part] sobre [total] (`42 %`), redondeado: solo es una pista visual.
+String _percent(Decimal part, Decimal total) {
+  final value = (part * Decimal.fromInt(100) / total).toDecimal(scaleOnInfinitePrecision: 0).round();
+  return '$value %';
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.color, required this.text, required this.textColor});
+
+  final Color color;
+  final String text;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 6),
+      Text(text, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: textColor)),
+    ],
+  );
 }
 
 class _ExpenseTile extends StatelessWidget {

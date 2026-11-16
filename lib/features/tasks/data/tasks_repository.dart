@@ -85,6 +85,10 @@ class TasksRepository {
     '/api/households/$householdId/tasks/${task.id}/complete',
     body: {if (task.dueDate != null) 'dueDate': Dates.toApi(task.dueDate!)},
   );
+
+  /// Deshace "hecha" en una tarea puntual (la API solo reabre las de tipo `NONE`).
+  Future<void> reopen(String householdId, String taskId) =>
+      _api.post('/api/households/$householdId/tasks/$taskId/reopen');
 }
 
 final tasksRepositoryProvider = Provider<TasksRepository>((ref) => TasksRepository(ref.watch(apiClientProvider)));
