@@ -190,7 +190,14 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => _ExpenseDetails(householdId: _id, expense: expense, members: members, canDelete: canDelete),
+      builder: (context) => _ExpenseDetails(
+        householdId: _id,
+        expense: expense,
+        members: members,
+        canDelete: canDelete,
+        // El icono de la lista refleja la factura al momento.
+        onInvoiceChanged: () => ref.invalidate(expensesProvider(_id)),
+      ),
     );
     if (delete != true || !mounted) {
       return;
@@ -302,7 +309,30 @@ class _ExpenseTile extends StatelessWidget {
     return ListTile(
       leading: TonalIcon(categoryIcon(expense.category), color: categoryColor(expense.category, theme.brightness)),
       title: Text(expense.description, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(mine ? 'Pagaste tú' : 'Pagó ${memberName(members, expense.paidBy)}'),
+      subtitle: Row(
+        children: [
+          Flexible(
+            child: Text(
+              mine ? 'Pagaste tú' : 'Pagó ${memberName(members, expense.paidBy)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (expense.hasInvoice) ...[
+            const SizedBox(width: 6),
+            Tooltip(
+              message: 'Con factura',
+              child: Icon(
+                Icons.receipt_long_outlined,
+                key: const Key('hasInvoice'),
+                size: 16,
+                color: theme.colorScheme.primary,
+                semanticLabel: 'Con factura',
+              ),
+            ),
+          ],
+        ],
+      ),
       trailing: AmountText(expense.amount, expense.currency),
       onTap: onTap,
     );
@@ -315,9 +345,11 @@ class _ExpenseDetails extends StatelessWidget {
     required this.expense,
     required this.members,
     required this.canDelete,
+    required this.onInvoiceChanged,
   });
 
   final String householdId;
+  final VoidCallback onInvoiceChanged;
   final Expense expense;
   final List<Member> members;
   final bool canDelete;
@@ -406,7 +438,12 @@ class _ExpenseDetails extends StatelessWidget {
                 ),
               ),
             // Quien puede borrar el gasto es quien puede tocar su factura (misma regla en la API).
-            InvoiceSection(householdId: householdId, expenseId: expense.id, canEdit: canDelete),
+            InvoiceSection(
+              householdId: householdId,
+              expenseId: expense.id,
+              canEdit: canDelete,
+              onChanged: onInvoiceChanged,
+            ),
             if (canDelete) ...[
               const SizedBox(height: 20),
               OutlinedButton.icon(

@@ -15,13 +15,22 @@ import '../data/invoices_repository.dart';
 /// Los errores se muestran aquí mismo y no en un SnackBar: la ficha es una hoja modal y el SnackBar
 /// quedaría debajo, sin verse.
 class InvoiceSection extends ConsumerStatefulWidget {
-  const InvoiceSection({super.key, required this.householdId, required this.expenseId, required this.canEdit});
+  const InvoiceSection({
+    super.key,
+    required this.householdId,
+    required this.expenseId,
+    required this.canEdit,
+    this.onChanged,
+  });
 
   final String householdId;
   final String expenseId;
 
   /// Pagador, quien creó el gasto o un OWNER (la API aplica la misma regla).
   final bool canEdit;
+
+  /// Tras adjuntar o quitar la factura (p. ej. para refrescar la lista de gastos).
+  final VoidCallback? onChanged;
 
   @override
   ConsumerState<InvoiceSection> createState() => _InvoiceSectionState();
@@ -163,10 +172,13 @@ class _InvoiceSectionState extends ConsumerState<InvoiceSection> {
     });
   }
 
-  /// La factura y el espacio usado del plan.
-  void _refresh() => ref
-    ..invalidate(invoiceProvider(_key))
-    ..invalidate(planProvider(widget.householdId));
+  /// La factura, el espacio usado del plan y quien escuche fuera (la lista de gastos).
+  void _refresh() {
+    ref
+      ..invalidate(invoiceProvider(_key))
+      ..invalidate(planProvider(widget.householdId));
+    widget.onChanged?.call();
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() {
