@@ -37,6 +37,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// El botón queda bajo el formulario: se desplaza a la vista antes de pulsarlo.
+  Future<void> tapSave(WidgetTester tester) async {
+    await tester.ensureVisible(find.byKey(const Key('incomeSave')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('incomeSave')));
+  }
+
   setUp(() {
     myIncomes = [
       {
@@ -122,13 +129,13 @@ void main() {
 
     await tester.tap(find.text('Ingreso'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('incomeSave')));
+    await tapSave(tester);
     await tester.pumpAndSettle();
     expect(find.text('Escribe el concepto (p. ej. Nómina)'), findsOneWidget);
 
     await tester.enterText(find.byKey(const Key('incomeConcept')), ' Clases particulares ');
     await tester.enterText(find.byKey(const Key('incomeAmount')), '250,5');
-    await tester.tap(find.byKey(const Key('incomeSave')));
+    await tapSave(tester);
     await tester.pumpAndSettle();
 
     final body = api.sent('POST $path').single.data as Map;
@@ -159,7 +166,7 @@ void main() {
     await tester.tap(find.text('Nómina'));
     await tester.pumpAndSettle();
     expect(find.text('Editar ingreso'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('incomeSave')));
+    await tapSave(tester);
     await tester.pumpAndSettle();
 
     expect(api.sent('PUT $path/i1').single.data, {

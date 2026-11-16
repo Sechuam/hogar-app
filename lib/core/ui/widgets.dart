@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../money/money.dart';
+import 'dates.dart';
 import 'theme.dart';
 
 /// Ancho máximo del contenido: en tablet y web las listas no se estiran de lado a lado.
@@ -174,6 +175,97 @@ class HighlightCard extends StatelessWidget {
         ),
       ),
       child: Padding(padding: const EdgeInsets.all(20), child: child),
+    );
+  }
+}
+
+/// Bloque de formulario: etiqueta encima y el control debajo, con separación fija. Evita que
+/// etiquetas y controles se pisen cuando se apilan.
+class FormBlock extends StatelessWidget {
+  const FormBlock({super.key, required this.label, required this.child, this.error});
+
+  final String label;
+  final Widget child;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(label, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ),
+          child,
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 6),
+              child: Text(error!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fecha en una tarjeta que abre el calendario; con [onClear], también se puede dejar sin fecha.
+class DateCard extends StatelessWidget {
+  const DateCard({
+    super.key,
+    required this.date,
+    required this.onChanged,
+    this.onClear,
+    this.emptyText = 'Sin fecha',
+    this.helper,
+    this.firstDate,
+    this.lastDate,
+  });
+
+  final DateTime? date;
+  final ValueChanged<DateTime> onChanged;
+  final VoidCallback? onClear;
+  final String emptyText;
+  final String? helper;
+  final DateTime? firstDate;
+  final DateTime? lastDate;
+
+  Future<void> _pick(BuildContext context) async {
+    final today = Dates.today();
+    final first = firstDate ?? DateTime(2000);
+    final last = lastDate ?? today.add(const Duration(days: 365 * 10));
+    var initial = date ?? today;
+    if (initial.isBefore(first)) {
+      initial = first;
+    } else if (initial.isAfter(last)) {
+      initial = last;
+    }
+    final picked = await showDatePicker(context: context, initialDate: initial, firstDate: first, lastDate: last);
+    if (picked != null) {
+      onChanged(picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = date;
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.event_outlined),
+        title: Text(value == null ? emptyText : Dates.relativeDay(value)),
+        subtitle: helper != null
+            ? Text(helper!)
+            : value != null && Dates.relativeDay(value) != Dates.format(value)
+            ? Text(Dates.format(value))
+            : null,
+        trailing: value != null && onClear != null
+            ? IconButton(tooltip: 'Quitar fecha', onPressed: onClear, icon: const Icon(Icons.close))
+            : const Icon(Icons.edit_calendar_outlined),
+        onTap: () => _pick(context),
+      ),
     );
   }
 }

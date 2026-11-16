@@ -196,8 +196,18 @@ class _TaskFormState extends State<_TaskForm> {
     super.dispose();
   }
 
+  void _submit() {
+    if (_form.currentState!.validate()) {
+      Navigator.pop(
+        context,
+        NewTask(title: _title.text, recurrence: _recurrence, dueDate: _dueDate, assigneeId: _assignee),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     // Con scroll: en pantallas bajas o con el teclado abierto el formulario no cabe.
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
@@ -207,58 +217,79 @@ class _TaskFormState extends State<_TaskForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Nueva tarea', style: Theme.of(context).textTheme.titleLarge),
+            Text('Nueva tarea', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
             TextFormField(
               key: const Key('taskTitle'),
               controller: _title,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Qué hay que hacer'),
+              decoration: const InputDecoration(
+                labelText: 'Qué hay que hacer',
+                hintText: 'Sacar la basura, limpiar el baño…',
+                prefixIcon: Icon(Icons.task_alt),
+              ),
               textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
               validator: (v) => (v ?? '').trim().isEmpty ? 'Escribe la tarea' : null,
             ),
-            DropdownButtonFormField<Recurrence>(
-              initialValue: _recurrence,
-              decoration: const InputDecoration(labelText: 'Se repite'),
-              items: [for (final r in Recurrence.values) DropdownMenuItem(value: r, child: Text(r.label))],
-              onChanged: (r) => setState(() => _recurrence = r!),
+            FormBlock(
+              label: 'Se repite',
+              child: Wrap(
+                key: const Key('taskRecurrence'),
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final r in Recurrence.values)
+                    ChoiceChip(
+                      label: Text(r.label),
+                      selected: _recurrence == r,
+                      onSelected: (_) => setState(() => _recurrence = r),
+                    ),
+                ],
+              ),
             ),
-            DropdownButtonFormField<String?>(
-              initialValue: _assignee,
-              decoration: const InputDecoration(labelText: 'Quién'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Cualquiera')),
-                for (final m in widget.members) DropdownMenuItem(value: m.userId, child: Text(m.displayName)),
-              ],
-              onChanged: (v) => setState(() => _assignee = v),
+            FormBlock(
+              label: 'Quién',
+              child: Wrap(
+                key: const Key('taskAssignee'),
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    avatar: const Icon(Icons.groups_outlined),
+                    label: const Text('Cualquiera'),
+                    selected: _assignee == null,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _assignee = null),
+                  ),
+                  for (final m in widget.members)
+                    ChoiceChip(
+                      avatar: MemberAvatar(id: m.userId, name: m.displayName, radius: 12),
+                      label: Text(m.displayName),
+                      selected: _assignee == m.userId,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _assignee = m.userId),
+                    ),
+                ],
+              ),
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Fecha'),
-              subtitle: Text(_dueDate == null ? 'Sin fecha' : Dates.format(_dueDate!)),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _dueDate ?? Dates.today(),
-                  firstDate: Dates.today().subtract(const Duration(days: 365)),
-                  lastDate: Dates.today().add(const Duration(days: 365 * 5)),
-                );
-                if (picked != null) {
-                  setState(() => _dueDate = picked);
-                }
-              },
+            FormBlock(
+              label: _recurrence == Recurrence.none ? 'Para cuándo' : 'Primera vez',
+              child: DateCard(
+                date: _dueDate,
+                onChanged: (d) => setState(() => _dueDate = d),
+                onClear: () => setState(() => _dueDate = null),
+                firstDate: Dates.today().subtract(const Duration(days: 365)),
+                lastDate: Dates.today().add(const Duration(days: 365 * 5)),
+              ),
             ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: () {
-                if (_form.currentState!.validate()) {
-                  Navigator.pop(
-                    context,
-                    NewTask(title: _title.text, recurrence: _recurrence, dueDate: _dueDate, assigneeId: _assignee),
-                  );
-                }
-              },
-              child: const Text('Crear'),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              key: const Key('taskSave'),
+              onPressed: _submit,
+              icon: const Icon(Icons.check),
+              label: const Text('Crear tarea'),
             ),
           ],
         ),

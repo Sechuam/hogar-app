@@ -44,21 +44,23 @@ abstract final class AppTheme {
         contentPadding: EdgeInsets.symmetric(horizontal: 16),
         minVerticalPadding: 12,
       ),
+      // Relleno con la etiqueta dentro del fondo (estilo "filled" de Material 3): con un borde
+      // "outline" la etiqueta flotante se dibuja sobre el borde superior e invade lo que hay encima.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: const OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
-        enabledBorder: const OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        border: const UnderlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
+        enabledBorder: const UnderlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
+        focusedBorder: UnderlineInputBorder(
           borderRadius: radius,
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
-        errorBorder: OutlineInputBorder(
+        errorBorder: UnderlineInputBorder(
           borderRadius: radius,
           borderSide: BorderSide(color: scheme.error),
         ),
-        focusedErrorBorder: OutlineInputBorder(
+        focusedErrorBorder: UnderlineInputBorder(
           borderRadius: radius,
           borderSide: BorderSide(color: scheme.error, width: 2),
         ),

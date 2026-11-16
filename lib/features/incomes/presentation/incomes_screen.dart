@@ -282,13 +282,6 @@ class _IncomeFormState extends State<IncomeForm> {
     super.dispose();
   }
 
-  Future<DateTime?> _pick(DateTime initial, {DateTime? first}) => showDatePicker(
-    context: context,
-    initialDate: initial,
-    firstDate: first ?? DateTime(2000),
-    lastDate: Dates.today().add(const Duration(days: 365 * 10)),
-  );
-
   Future<void> _save() async {
     setState(() => _fieldErrors = const {});
     if (!_form.currentState!.validate()) {
@@ -326,8 +319,8 @@ class _IncomeFormState extends State<IncomeForm> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final endDateError = _fieldErrors['endDate'] ?? _fieldErrors['endDateValid'];
-    // Con scroll: en pantallas bajas o con el teclado abierto el formulario no cabe.
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
       child: Form(
@@ -336,86 +329,85 @@ class _IncomeFormState extends State<IncomeForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              widget.initial == null ? 'Nuevo ingreso' : 'Editar ingreso',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(widget.initial == null ? 'Nuevo ingreso' : 'Editar ingreso', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
             TextFormField(
               key: const Key('incomeConcept'),
               controller: _concept,
-              decoration: InputDecoration(labelText: 'Concepto', errorText: _fieldErrors['concept']),
+              decoration: InputDecoration(
+                labelText: 'Concepto',
+                hintText: 'Nómina, clases…',
+                prefixIcon: const Icon(Icons.badge_outlined),
+                errorText: _fieldErrors['concept'],
+                counterText: '',
+              ),
               textCapitalization: TextCapitalization.sentences,
               maxLength: 200,
               validator: (v) => (v ?? '').trim().isEmpty ? 'Escribe el concepto (p. ej. Nómina)' : null,
             ),
+            const SizedBox(height: 12),
             TextFormField(
               key: const Key('incomeAmount'),
               controller: _amount,
-              decoration: InputDecoration(labelText: 'Importe', errorText: _fieldErrors['amount']),
+              decoration: InputDecoration(
+                labelText: 'Importe',
+                hintText: '0,00',
+                prefixIcon: const Icon(Icons.euro),
+                errorText: _fieldErrors['amount'],
+              ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (v) => Money.parseInput(v ?? '') == null
                   ? 'Escribe un importe mayor que 0 con 2 decimales como mucho'
                   : null,
             ),
-            SwitchListTile(
-              key: const Key('incomeRecurring'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Se repite cada mes'),
-              value: _recurring,
-              onChanged: (v) => setState(() => _recurring = v),
+            const SizedBox(height: 12),
+            Card(
+              child: SwitchListTile(
+                key: const Key('incomeRecurring'),
+                secondary: const Icon(Icons.repeat_rounded),
+                title: const Text('Se repite cada mes'),
+                subtitle: Text(_recurring ? 'Cuenta todos los meses' : 'Solo cuenta en su mes'),
+                value: _recurring,
+                onChanged: (v) => setState(() => _recurring = v),
+              ),
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(_recurring ? 'Desde' : 'Fecha'),
-              subtitle: Text(Dates.format(_date), style: TextStyle(color: _errorColor(_fieldErrors['date']))),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: () async {
-                final picked = await _pick(_date);
-                if (picked != null) {
-                  setState(() {
-                    _date = picked;
-                    if (_endDate != null && _endDate!.isBefore(picked)) {
-                      _endDate = null;
-                    }
-                  });
-                }
-              },
+            FormBlock(
+              label: _recurring ? 'Desde' : 'Fecha',
+              error: _fieldErrors['date'],
+              child: DateCard(
+                date: _date,
+                onChanged: (d) => setState(() {
+                  _date = d;
+                  if (_endDate != null && _endDate!.isBefore(d)) {
+                    _endDate = null;
+                  }
+                }),
+              ),
             ),
             if (_recurring)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Hasta'),
-                subtitle: Text(
-                  endDateError ?? (_endDate == null ? 'Sin fecha de fin' : Dates.format(_endDate!)),
-                  style: TextStyle(color: _errorColor(endDateError)),
+              FormBlock(
+                label: 'Hasta',
+                error: endDateError,
+                child: DateCard(
+                  date: _endDate,
+                  emptyText: 'Sin fecha de fin',
+                  onChanged: (d) => setState(() => _endDate = d),
+                  onClear: () => setState(() => _endDate = null),
+                  firstDate: _date,
                 ),
-                trailing: _endDate == null
-                    ? const Icon(Icons.event_outlined)
-                    : IconButton(
-                        tooltip: 'Quitar fecha de fin',
-                        onPressed: () => setState(() => _endDate = null),
-                        icon: const Icon(Icons.close),
-                      ),
-                onTap: () async {
-                  final picked = await _pick(_endDate ?? _date, first: _date);
-                  if (picked != null) {
-                    setState(() => _endDate = picked);
-                  }
-                },
               ),
-            const SizedBox(height: 8),
-            FilledButton(
+            const SizedBox(height: 24),
+            FilledButton.icon(
               key: const Key('incomeSave'),
               onPressed: _saving ? null : _save,
-              child: _saving
+              icon: _saving
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Guardar'),
+                  : const Icon(Icons.check),
+              label: const Text('Guardar'),
             ),
           ],
         ),
       ),
     );
   }
-
-  Color? _errorColor(String? error) => error == null ? null : Theme.of(context).colorScheme.error;
 }

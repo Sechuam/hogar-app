@@ -87,6 +87,9 @@ class _AvatarStack extends StatelessWidget {
   static const _max = 3;
   static const _radius = 15.0;
 
+  /// Solape mínimo: lo justo para que se vean agrupados sin tapar las iniciales del de al lado.
+  static const _step = _radius * 2 - 2;
+
   @override
   Widget build(BuildContext context) {
     final shown = members.take(_max).toList();
@@ -101,18 +104,18 @@ class _AvatarStack extends StatelessWidget {
     return Semantics(
       label: '${members.length} miembros',
       child: SizedBox(
-        width: _radius * 2 + 4 + (count - 1) * _radius * 1.3,
+        width: _radius * 2 + 4 + (count - 1) * _step,
         height: _radius * 2 + 4,
         child: Stack(
           children: [
             for (final (i, m) in shown.indexed)
               Positioned(
-                left: i * _radius * 1.3,
+                left: i * _step,
                 child: ringed(MemberAvatar(id: m.userId, name: m.displayName, radius: _radius)),
               ),
             if (extra > 0)
               Positioned(
-                left: shown.length * _radius * 1.3,
+                left: shown.length * _step,
                 child: ringed(
                   CircleAvatar(
                     radius: _radius,
