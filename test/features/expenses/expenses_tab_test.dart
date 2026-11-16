@@ -24,12 +24,17 @@ void main() {
   late FakeApi api;
   late Set<String> withInvoice;
 
-  Map<String, Object?> expense(String id, String description) => {
+  Map<String, Object?> expense(
+    String id,
+    String description, {
+    String amount = '20.00',
+    String category = 'GROCERIES',
+  }) => {
     'id': id,
-    'amount': '20.00',
+    'amount': amount,
     'currency': 'EUR',
     'description': description,
-    'category': 'GROCERIES',
+    'category': category,
     'date': Dates.toApi(Dates.today()),
     'paidBy': 'ana',
     'createdBy': 'ana',
@@ -131,5 +136,31 @@ void main() {
 
     expect(api.sent('GET /api/households/$h/expenses').length, greaterThan(listsBefore));
     expect(iconIn('Compra'), findsOneWidget);
+  });
+
+  testWidgets('el resumen del mes reparte el total por categorías, de mayor a menor', (tester) async {
+    api.on(
+      'GET /api/households/$h/expenses',
+      (_) => FakeResponse(200, {
+        'content': [
+          expense('e1', 'Alquiler', amount: '600.00', category: 'RENT'),
+          expense('e2', 'Compra', amount: '300.00'),
+          expense('e3', 'Luz', amount: '60.00', category: 'ELECTRICITY'),
+          expense('e4', 'Agua', amount: '30.00', category: 'WATER'),
+          expense('e5', 'Escoba', amount: '10.00', category: 'CLEANING'),
+        ],
+        'page': 0,
+        'totalPages': 1,
+      }),
+    );
+    await pumpTab(tester);
+
+    expect(find.text('1.000,00 €'), findsOneWidget, reason: 'el total termina en su valor exacto');
+    expect(find.text('Alquiler 60 %'), findsOneWidget);
+    expect(find.text('Compra 30 %'), findsOneWidget);
+    expect(find.text('Luz 6 %'), findsOneWidget);
+    // Solo las tres mayores en la leyenda; el resto se resume.
+    expect(find.text('+2 más'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^Agua \d+ %$')), findsNothing);
   });
 }

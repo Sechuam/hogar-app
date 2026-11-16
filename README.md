@@ -10,7 +10,7 @@ dinero**: solo registra y calcula.
 | Estado / DI | Riverpod 3, sin generación de código |
 | Navegación | go_router, con redirección según la sesión |
 | HTTP | Dio, con renovación de sesión compartida ante 401 |
-| Interfaz | Material 3 con tema propio (claro y oscuro), componentes comunes en `core/ui` |
+| Interfaz | Material 3 con tema propio (claro y oscuro), componentes, animaciones y gráficos propios en `core/ui` |
 | Dinero | `Decimal`; nunca `double`. Se envía a la API como texto (`"42.50"`) |
 | Tests | `flutter_test`; widgets probados contra una API falsa (sin mocks de repositorios) |
 
@@ -19,12 +19,14 @@ dinero**: solo registra y calcula.
 - Registro e inicio de sesión con email; la sesión se recupera al arrancar.
 - Hogares: crear, unirse con un código de invitación, invitar y salir.
 - Plan FREE/PREMIUM con el uso frente a sus límites (miembros, espacio, historial visible).
-- Gastos: listar, crear y borrar; avisos de la API sobre el reparto.
+- Gastos: listar, crear y borrar; resumen del mes con el reparto por categorías; avisos de la API
+  sobre el reparto.
 - Facturas: adjuntar un PDF o una foto a un gasto, verla o descargarla y quitarla.
 - Ingresos: los propios (puntuales o recurrentes) y el reparto de cada mes entre los miembros; el
   propietario elige si los gastos se reparten a partes iguales o según ingresos.
-- Saldos y pagos sugeridos para quedar en paz; "Registrar" anota el pago tras confirmarlo.
-- Tareas: pendientes, crear (con periodicidad y asignado) y completar.
+- Saldos (con barra a favor/en contra) y pagos sugeridos para quedar en paz; "Registrar" anota el pago tras confirmarlo.
+- Tareas: resumen (vencidas, para hoy, más adelante), crear (con periodicidad y asignado), completar y
+  deshacer si era puntual.
 - Apariencia: tema del sistema, claro u oscuro (menú de la cuenta); se guarda en el dispositivo.
 
 Fuera de esta versión: login con Google y edición de gastos ([A-005](docs/DECISIONS.md)).

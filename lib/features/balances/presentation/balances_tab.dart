@@ -4,7 +4,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/ui/async_view.dart';
+import '../../../core/ui/charts.dart';
 import '../../../core/ui/dates.dart';
+import '../../../core/ui/motion.dart';
 import '../../../core/ui/theme.dart';
 import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
@@ -47,27 +49,36 @@ class BalancesTab extends ConsumerWidget {
       onRefresh: refresh,
       child: AsyncView(
         value: balances,
+        loading: const SkeletonList(cards: 2),
         onRetry: refresh,
         data: (b) {
           final mine = b.members.where((m) => m.userId == me).firstOrNull;
+          final largest = b.members.fold(Decimal.zero, (max, m) => m.balance.abs() > max ? m.balance.abs() : max);
           return ContentWidth(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
-                if (mine != null) _MyBalanceCard(balance: mine.balance, currency: b.currency),
+                if (mine != null)
+                  Appear(
+                    child: _MyBalanceCard(balance: mine.balance, currency: b.currency),
+                  ),
                 const SectionHeader('Saldos'),
-                Card(
-                  child: Column(
-                    children: [
-                      for (final (i, m) in b.members.indexed) ...[
-                        if (i > 0) const Divider(indent: 72),
-                        _BalanceRow(
-                          name: memberName(members, m.userId, unknown: m.active ? '…' : 'Ex-miembro'),
-                          balance: m,
-                          currency: b.currency,
-                        ),
+                Appear(
+                  index: 1,
+                  child: Card(
+                    child: Column(
+                      children: [
+                        for (final (i, m) in b.members.indexed) ...[
+                          if (i > 0) const Divider(indent: 72),
+                          _BalanceRow(
+                            name: memberName(members, m.userId, unknown: m.active ? '…' : 'Ex-miembro'),
+                            balance: m,
+                            currency: b.currency,
+                            largest: largest,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
                 const SectionHeader('Pagos sugeridos'),
@@ -76,18 +87,22 @@ class BalancesTab extends ConsumerWidget {
                 else
                   AsyncView(
                     value: transfers,
+                    loading: const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
                     onRetry: () => ref.invalidate(suggestedTransfersProvider(householdId)),
                     data: (list) => Column(
                       children: [
                         for (final t in list)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: _TransferCard(
-                              transfer: t,
-                              from: memberName(members, t.fromUserId),
-                              to: memberName(members, t.toUserId),
-                              currency: b.currency,
-                              onSettle: () => _settle(context, ref, t, members, b.currency),
+                            child: Appear(
+                              index: 2,
+                              child: _TransferCard(
+                                transfer: t,
+                                from: memberName(members, t.fromUserId),
+                                to: memberName(members, t.toUserId),
+                                currency: b.currency,
+                                onSettle: () => _settle(context, ref, t, members, b.currency),
+                              ),
                             ),
                           ),
                         Padding(
@@ -179,7 +194,7 @@ class _MyBalanceCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(label, style: theme.textTheme.titleMedium?.copyWith(color: foreground)),
                 if (balance != Decimal.zero)
-                  AmountText(
+                  AnimatedAmount(
                     balance.abs(),
                     currency,
                     style: theme.textTheme.headlineMedium?.copyWith(color: foreground),
@@ -195,11 +210,14 @@ class _MyBalanceCard extends StatelessWidget {
 }
 
 class _BalanceRow extends StatelessWidget {
-  const _BalanceRow({required this.name, required this.balance, required this.currency});
+  const _BalanceRow({required this.name, required this.balance, required this.currency, required this.largest});
 
   final String name;
   final MemberBalance balance;
   final String currency;
+
+  /// Mayor saldo en valor absoluto: la barra de cada miembro se mide respecto a él.
+  final Decimal largest;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +233,19 @@ class _BalanceRow extends StatelessWidget {
         child: MemberAvatar(id: balance.userId, name: name),
       ),
       title: Text(balance.active || name == 'Ex-miembro' ? name : '$name (ya no está)'),
-      subtitle: Text(label),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label),
+          const SizedBox(height: 6),
+          DivergingBar(
+            // Solo para dibujar la proporción; el importe exacto va a la derecha.
+            fraction: largest == Decimal.zero ? 0 : (value / largest).toDouble(),
+            positive: MoneyColors.of(context).positive,
+            negative: MoneyColors.of(context).negative,
+          ),
+        ],
+      ),
       trailing: AmountText(value, currency, signed: true),
     );
   }

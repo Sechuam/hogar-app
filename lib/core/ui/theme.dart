@@ -17,6 +17,10 @@ abstract final class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: scheme.surface,
+      // Misma transición entre pantallas en todas las plataformas (también en web).
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {for (final platform in TargetPlatform.values) platform: const FadeForwardsPageTransitionsBuilder()},
+      ),
       textTheme: text.copyWith(
         headlineMedium: text.headlineMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
         headlineSmall: text.headlineSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.25),

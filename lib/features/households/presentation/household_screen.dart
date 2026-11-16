@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../balances/presentation/balances_tab.dart';
 import '../../expenses/presentation/expenses_tab.dart';
+import '../../../core/ui/motion.dart';
 import '../../../core/ui/widgets.dart';
 import '../../tasks/presentation/tasks_tab.dart';
 import '../data/households_repository.dart';
@@ -19,8 +20,28 @@ class HouseholdScreen extends ConsumerStatefulWidget {
   ConsumerState<HouseholdScreen> createState() => _HouseholdScreenState();
 }
 
-class _HouseholdScreenState extends ConsumerState<HouseholdScreen> {
+class _HouseholdScreenState extends ConsumerState<HouseholdScreen> with SingleTickerProviderStateMixin {
   int _tab = 0;
+
+  /// Transición al cambiar de pestaña (fundido y un leve desplazamiento). Se anima el IndexedStack
+  /// entero, no cada pestaña, para no perder su estado (scroll, páginas cargadas).
+  late final AnimationController _fade = AnimationController(vsync: this, duration: Motion.medium, value: 1);
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  void _select(int tab) {
+    if (tab == _tab) {
+      return;
+    }
+    setState(() => _tab = tab);
+    if (!Motion.reduced(context)) {
+      _fade.forward(from: 0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,31 +51,68 @@ class _HouseholdScreenState extends ConsumerState<HouseholdScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.go('/')),
-        title: Text(household.value?.name ?? ''),
+        titleSpacing: 0,
+        title: _Title(household: household.value),
         actions: [
           if (members.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => setState(() => _tab = 3),
+                onTap: () => _select(3),
                 child: _AvatarStack(members: members),
               ),
             ),
         ],
       ),
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          ExpensesTab(householdId: id),
-          BalancesTab(householdId: id),
-          TasksTab(householdId: id),
-          HouseholdInfoTab(householdId: id),
-        ],
+      body: AnimatedBuilder(
+        animation: _fade,
+        builder: (context, child) {
+          final t = Motion.curve.transform(_fade.value);
+          return Opacity(
+            opacity: t,
+            child: Transform.translate(offset: Offset(0, 8 * (1 - t)), child: child),
+          );
+        },
+        child: IndexedStack(
+          index: _tab,
+          children: [
+            ExpensesTab(householdId: id),
+            BalancesTab(householdId: id),
+            TasksTab(householdId: id),
+            HouseholdInfoTab(householdId: id),
+          ],
+        ),
+      ),
+      // Un único botón flotante en la pantalla (no uno por pestaña): así los mensajes inferiores lo
+      // desplazan en vez de taparlo, y cambia con una transición al cambiar de pestaña.
+      floatingActionButton: AnimatedSwitcher(
+        duration: Motion.medium,
+        transitionBuilder: (child, animation) => ScaleTransition(
+          scale: CurvedAnimation(parent: animation, curve: Motion.curve),
+          child: FadeTransition(opacity: animation, child: child),
+        ),
+        child: switch (_tab) {
+          0 => FloatingActionButton.extended(
+            key: const ValueKey('new-expense'),
+            heroTag: 'new-expense',
+            onPressed: () => context.go('/households/$id/expenses/new'),
+            icon: const Icon(Icons.add),
+            label: const Text('Gasto'),
+          ),
+          2 => FloatingActionButton.extended(
+            key: const ValueKey('new-task'),
+            heroTag: 'new-task',
+            onPressed: () => createTask(context, ref, id),
+            icon: const Icon(Icons.add_task),
+            label: const Text('Tarea'),
+          ),
+          _ => const SizedBox.shrink(key: ValueKey('none')),
+        },
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: _select,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
@@ -74,6 +132,34 @@ class _HouseholdScreenState extends ConsumerState<HouseholdScreen> {
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Hogar'),
         ],
       ),
+    );
+  }
+}
+
+/// Nombre del hogar con una línea de contexto debajo (plan y miembros).
+class _Title extends StatelessWidget {
+  const _Title({required this.household});
+
+  final Household? household;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final h = household;
+    if (h == null) {
+      return const SizedBox.shrink();
+    }
+    final members = h.memberCount == 1 ? '1 miembro' : '${h.memberCount} miembros';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(h.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleLarge),
+        Text(
+          'Plan ${h.plan} · $members',
+          style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }
