@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ui/async_view.dart';
 import '../session_controller.dart';
+import 'brand.dart';
 
 /// Mientras se recupera la sesión guardada; si falla por red, permite reintentar.
 class SplashScreen extends ConsumerWidget {
@@ -14,7 +15,16 @@ class SplashScreen extends ConsumerWidget {
     return Scaffold(
       body: session.hasError
           ? ErrorRetry(error: session.error!, onRetry: () => ref.read(sessionProvider.notifier).retry())
-          : const Center(child: CircularProgressIndicator()),
+          : const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BrandMark(),
+                  SizedBox(height: 32),
+                  SizedBox(width: 120, child: LinearProgressIndicator()),
+                ],
+              ),
+            ),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../balances/presentation/balances_tab.dart';
 import '../../expenses/presentation/expenses_tab.dart';
+import '../../../core/ui/widgets.dart';
 import '../../tasks/presentation/tasks_tab.dart';
 import '../data/households_repository.dart';
 import 'household_info_tab.dart';
@@ -24,11 +25,23 @@ class _HouseholdScreenState extends ConsumerState<HouseholdScreen> {
   @override
   Widget build(BuildContext context) {
     final household = ref.watch(householdProvider(widget.householdId));
+    final members = ref.watch(membersProvider(widget.householdId)).value ?? const <Member>[];
     final id = widget.householdId;
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.go('/')),
         title: Text(household.value?.name ?? ''),
+        actions: [
+          if (members.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => setState(() => _tab = 3),
+                child: _AvatarStack(members: members),
+              ),
+            ),
+        ],
       ),
       body: IndexedStack(
         index: _tab,
@@ -43,11 +56,75 @@ class _HouseholdScreenState extends ConsumerState<HouseholdScreen> {
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Gastos'),
-          NavigationDestination(icon: Icon(Icons.balance_outlined), label: 'Balances'),
-          NavigationDestination(icon: Icon(Icons.checklist_outlined), label: 'Tareas'),
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Hogar'),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Gastos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.balance_outlined),
+            selectedIcon: Icon(Icons.balance),
+            label: 'Balances',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.checklist_outlined),
+            selectedIcon: Icon(Icons.checklist),
+            label: 'Tareas',
+          ),
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Hogar'),
         ],
+      ),
+    );
+  }
+}
+
+/// Avatares superpuestos de los primeros miembros (y "+N" si hay más).
+class _AvatarStack extends StatelessWidget {
+  const _AvatarStack({required this.members});
+
+  final List<Member> members;
+
+  static const _max = 3;
+  static const _radius = 15.0;
+
+  /// Solape mínimo: lo justo para que se vean agrupados sin tapar las iniciales del de al lado.
+  static const _step = _radius * 2 - 2;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = members.take(_max).toList();
+    final extra = members.length - shown.length;
+    final count = shown.length + (extra > 0 ? 1 : 0);
+    final ring = Theme.of(context).colorScheme.surface;
+    Widget ringed(Widget child) => Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(color: ring, shape: BoxShape.circle),
+      child: child,
+    );
+    return Semantics(
+      label: '${members.length} miembros',
+      child: SizedBox(
+        width: _radius * 2 + 4 + (count - 1) * _step,
+        height: _radius * 2 + 4,
+        child: Stack(
+          children: [
+            for (final (i, m) in shown.indexed)
+              Positioned(
+                left: i * _step,
+                child: ringed(MemberAvatar(id: m.userId, name: m.displayName, radius: _radius)),
+              ),
+            if (extra > 0)
+              Positioned(
+                left: shown.length * _step,
+                child: ringed(
+                  CircleAvatar(
+                    radius: _radius,
+                    child: Text('+$extra', style: Theme.of(context).textTheme.labelSmall),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

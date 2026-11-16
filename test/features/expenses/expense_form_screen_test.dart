@@ -145,6 +145,7 @@ void main() {
     await tester.tap(find.byKey(const Key('save')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('no puede ser futura'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('no puede ser futura'), findsOneWidget);
     expect(find.text('pantalla del hogar'), findsNothing);
   });

@@ -75,7 +75,10 @@ void main() {
 
     await tester.tap(find.text('Registrar'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('La app no mueve dinero'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AlertDialog), matching: find.textContaining('La app no mueve dinero')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();

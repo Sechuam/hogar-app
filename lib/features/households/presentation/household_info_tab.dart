@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ui/async_view.dart';
 import '../../../core/ui/dates.dart';
+import '../../../core/ui/widgets.dart';
 import '../../auth/session_controller.dart';
 import '../data/households_repository.dart';
 
@@ -31,50 +32,58 @@ class HouseholdInfoTab extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: refresh,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          AsyncView(
-            value: plan,
-            onRetry: refresh,
-            data: (p) => PlanCard(plan: p),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: Text('Miembros', style: Theme.of(context).textTheme.titleMedium)),
-              if (household.value?.isOwner ?? false)
-                TextButton.icon(
-                  onPressed: () => _invite(context, ref),
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const Text('Invitar'),
+      child: ContentWidth(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            AsyncView(
+              value: plan,
+              onRetry: refresh,
+              data: (p) => PlanCard(plan: p),
+            ),
+            const SectionHeader('Reparto de gastos'),
+            if (household.value case final h?) SplitPolicyCard(household: h),
+            SectionHeader(
+              'Miembros',
+              trailing: (household.value?.isOwner ?? false)
+                  ? FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(minimumSize: const Size(0, 36)),
+                      onPressed: () => _invite(context, ref),
+                      icon: const Icon(Icons.person_add_alt, size: 18),
+                      label: const Text('Invitar'),
+                    )
+                  : null,
+            ),
+            AsyncView(
+              value: members,
+              onRetry: refresh,
+              data: (list) => Card(
+                child: Column(
+                  children: [
+                    for (final (i, m) in list.indexed) ...[
+                      if (i > 0) const Divider(indent: 72),
+                      ListTile(
+                        leading: MemberAvatar(id: m.userId, name: m.displayName),
+                        title: Text(m.userId == me ? '${m.displayName} (yo)' : m.displayName),
+                        subtitle: Text(m.email, overflow: TextOverflow.ellipsis),
+                        trailing: m.role == 'OWNER'
+                            ? Icon(Icons.star_rounded, color: Theme.of(context).colorScheme.tertiary)
+                            : null,
+                      ),
+                    ],
+                  ],
                 ),
-            ],
-          ),
-          AsyncView(
-            value: members,
-            onRetry: refresh,
-            data: (list) => Card(
-              child: Column(
-                children: [
-                  for (final m in list)
-                    ListTile(
-                      leading: CircleAvatar(child: Text(m.displayName.characters.first.toUpperCase())),
-                      title: Text(m.userId == me ? '${m.displayName} (yo)' : m.displayName),
-                      subtitle: Text(m.email),
-                      trailing: m.role == 'OWNER' ? const Chip(label: Text('Propietario')) : null,
-                    ),
-                ],
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => _leave(context, ref),
-            icon: const Icon(Icons.logout),
-            label: const Text('Salir del hogar'),
-          ),
-        ],
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+              onPressed: () => _leave(context, ref),
+              icon: const Icon(Icons.logout),
+              label: const Text('Salir del hogar'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -92,12 +101,25 @@ class HouseholdInfoTab extends ConsumerWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SelectableText(
-                invitation.code,
-                key: const Key('invitationCode'),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(letterSpacing: 2),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SelectableText(
+                  invitation.code,
+                  key: const Key('invitationCode'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    letterSpacing: 4,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 'Válido hasta el ${Dates.format(invitation.expiresAt)}. '
                 'Quien lo reciba lo usa en "Unirme con un código".',
@@ -151,6 +173,92 @@ class HouseholdInfoTab extends ConsumerWidget {
   }
 }
 
+/// Política de reparto de los gastos nuevos (la cambia el OWNER) y acceso a los ingresos.
+class SplitPolicyCard extends ConsumerStatefulWidget {
+  const SplitPolicyCard({super.key, required this.household});
+
+  final Household household;
+
+  @override
+  ConsumerState<SplitPolicyCard> createState() => _SplitPolicyCardState();
+}
+
+class _SplitPolicyCardState extends ConsumerState<SplitPolicyCard> {
+  bool _saving = false;
+
+  Future<void> _change(String policy) async {
+    final proportional = policy == 'PROPORTIONAL';
+    final ok = await confirm(
+      context,
+      title: proportional ? 'Reparto proporcional' : 'Reparto a partes iguales',
+      message:
+          '${proportional ? 'Cada gasto nuevo se repartirá según los ingresos de cada miembro en el mes del gasto.' : 'Cada gasto nuevo se repartirá a partes iguales.'}'
+          '\n\nLos gastos ya creados conservan su reparto.',
+      confirmLabel: 'Cambiar',
+    );
+    if (!ok) {
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final id = widget.household.id;
+      await ref.read(householdsRepositoryProvider).updateSplitPolicy(id, policy);
+      ref
+        ..invalidate(householdProvider(id))
+        ..invalidate(myHouseholdsProvider);
+    } catch (e) {
+      if (mounted) {
+        showError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = widget.household;
+    final proportional = h.splitPolicy == 'PROPORTIONAL';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 'EQUAL', label: Text('A partes iguales')),
+                ButtonSegment(value: 'PROPORTIONAL', label: Text('Según ingresos')),
+              ],
+              selected: {h.splitPolicy},
+              onSelectionChanged: h.isOwner && !_saving ? (s) => _change(s.single) : null,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              [
+                proportional
+                    ? 'Cada uno paga en proporción a sus ingresos del mes del gasto.'
+                    : 'Cada gasto se divide a partes iguales entre los miembros.',
+                if (!h.isOwner) 'Solo el propietario puede cambiarlo.',
+              ].join(' '),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/households/${h.id}/incomes'),
+              icon: const Icon(Icons.savings_outlined),
+              label: const Text('Ingresos del hogar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Plan del hogar con el uso frente a sus límites.
 class PlanCard extends StatelessWidget {
   const PlanCard({super.key, required this.plan});
@@ -170,9 +278,13 @@ class PlanCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                TonalIcon(
+                  plan.isPremium ? Icons.workspace_premium_rounded : Icons.inventory_2_outlined,
+                  color: plan.isPremium ? theme.colorScheme.tertiary : theme.colorScheme.primary,
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
                 Text('Plan ${plan.plan}', style: theme.textTheme.titleMedium),
-                const Spacer(),
-                if (plan.isPremium) const Icon(Icons.workspace_premium_outlined),
               ],
             ),
             if (plan.isPremium)

@@ -9,6 +9,7 @@ import '../features/auth/session_controller.dart';
 import '../features/expenses/presentation/expense_form_screen.dart';
 import '../features/households/presentation/household_screen.dart';
 import '../features/households/presentation/households_screen.dart';
+import '../features/incomes/presentation/incomes_screen.dart';
 
 /// Rutas de la app. La sesión decide adónde se puede ir: sin sesión, solo `/login`; mientras se
 /// recupera la sesión guardada (o si falla por red), `/splash`.
@@ -32,6 +33,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'households/:id',
             builder: (context, state) => HouseholdScreen(householdId: state.pathParameters['id']!),
             routes: [
+              GoRoute(
+                path: 'incomes',
+                builder: (context, state) => IncomesScreen(householdId: state.pathParameters['id']!),
+              ),
               GoRoute(
                 path: 'expenses/new',
                 builder: (context, state) => ExpenseFormScreen(householdId: state.pathParameters['id']!),
