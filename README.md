@@ -20,12 +20,13 @@ dinero**: solo registra y calcula.
 - Hogares: crear, unirse con un código de invitación, invitar y salir.
 - Plan FREE/PREMIUM con el uso frente a sus límites (miembros, espacio, historial visible).
 - Gastos: listar, crear y borrar; avisos de la API sobre el reparto.
+- Facturas: adjuntar un PDF o una foto a un gasto, verla o descargarla y quitarla.
 - Ingresos: los propios (puntuales o recurrentes) y el reparto de cada mes entre los miembros; el
   propietario elige si los gastos se reparten a partes iguales o según ingresos.
 - Saldos y pagos sugeridos para quedar en paz; "Registrar" anota el pago tras confirmarlo.
 - Tareas: pendientes, crear (con periodicidad y asignado) y completar.
 
-Fuera de esta versión: login con Google, facturas y edición de gastos ([A-005](docs/DECISIONS.md)).
+Fuera de esta versión: login con Google y edición de gastos ([A-005](docs/DECISIONS.md)).
 
 ## Arrancar
 

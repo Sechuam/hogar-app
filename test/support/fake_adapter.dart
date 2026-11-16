@@ -29,6 +29,10 @@ class FakeAdapter implements HttpClientAdapter {
     requests.add(options);
     final response = await handler(options);
     final isProblem = response.status >= 400;
+    final body = response.body;
+    if (body is Uint8List) {
+      return ResponseBody.fromBytes(body, response.status, headers: response.headers);
+    }
     return ResponseBody.fromString(
       response.body == null ? '' : jsonEncode(response.body),
       response.status,

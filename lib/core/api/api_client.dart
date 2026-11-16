@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -80,23 +81,32 @@ class ApiClient {
 
   Future<dynamic> delete(String path) => _send('DELETE', path);
 
+  /// `multipart/form-data`. El formulario se construye en cada intento: un [FormData] ya enviado no
+  /// se puede reenviar si hay que repetir la petición tras renovar el token.
+  Future<dynamic> upload(String path, FormData Function() form) => _send('POST', path, body: form);
+
+  /// Contenido binario (p. ej. una factura).
+  Future<Uint8List> getBytes(String path) async =>
+      Uint8List.fromList(await _send('GET', path, responseType: ResponseType.bytes) as List<int>);
+
   Future<dynamic> _send(
     String method,
     String path, {
     Object? body,
     Map<String, dynamic>? query,
     bool authenticated = true,
+    ResponseType? responseType,
   }) async {
     if (authenticated && _accessToken == null) {
       await _refreshOrExpire();
     }
     try {
-      return await _request(method, path, body, query, authenticated);
+      return await _request(method, path, body, query, authenticated, responseType);
     } on DioException catch (e) {
       if (authenticated && e.response?.statusCode == 401) {
         await _refreshOrExpire();
         try {
-          return await _request(method, path, body, query, authenticated);
+          return await _request(method, path, body, query, authenticated, responseType);
         } on DioException catch (retry) {
           throw ApiException.fromDio(retry);
         }
@@ -111,12 +121,19 @@ class ApiClient {
     Object? body,
     Map<String, dynamic>? query,
     bool authenticated,
+    ResponseType? responseType,
   ) async {
+    final data = body is FormData Function() ? body() : body;
     final response = await _dio.request<dynamic>(
       path,
-      data: body,
+      data: data,
       queryParameters: query?..removeWhere((_, value) => value == null),
-      options: Options(method: method, headers: authenticated ? {'Authorization': 'Bearer $_accessToken'} : null),
+      options: Options(
+        method: method,
+        headers: authenticated ? {'Authorization': 'Bearer $_accessToken'} : null,
+        responseType: responseType,
+        contentType: data is FormData ? Headers.multipartFormDataContentType : null,
+      ),
     );
     return response.data;
   }

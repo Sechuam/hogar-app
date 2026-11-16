@@ -34,7 +34,7 @@ desarrollo, y la API no usa cookies (sin CSRF).
 ## A-005 · Alcance de la primera versión — Aceptada
 Incluye: registro y login con email, hogares (crear, unirse con código, invitar), plan y uso, gastos
 (listar, crear, borrar), balances con pagos sugeridos y registro del pago, tareas (listar, crear,
-completar). Fuera por ahora: login con Google (necesita client IDs de cada plataforma), facturas (cámara y ficheros), edición de gastos y notificaciones.
+completar). Fuera por ahora: login con Google (necesita client IDs de cada plataforma), facturas (cámara y ficheros), edición de gastos y notificaciones. Las facturas llegaron después (A-010).
 
 ## A-006 · Tests de widgets contra una API falsa — Aceptada
 **Contexto:** los widgets dependen de providers que llaman a repositorios que llaman al `ApiClient`.
@@ -65,3 +65,15 @@ persona, importe con cifras tabulares, cabecera de sección, tarjeta destacada y
 para tablet y web. Sin fuentes descargadas: se usa la tipografía del sistema (sin dependencias ni
 peticiones externas). **Consecuencia:** las pantallas solo combinan piezas; cambiar el aspecto de la app
 es tocar un fichero.
+
+## A-010 · Facturas: plugins detrás de una interfaz y errores dentro de la ficha — Aceptada
+**Contexto:** adjuntar una factura necesita elegir un fichero y, al verla, entregarla al sistema;
+ambas cosas dependen de la plataforma (diálogo nativo, hoja de compartir, descarga en web).
+**Decisión:** `file_picker` para elegir y `share_plus` para abrir (en móvil, la hoja de compartir con
+"Abrir con…" y "Guardar en Archivos"; en web, descarga), ambos detrás de `InvoiceFiles`, que los tests
+sustituyen. Las imágenes se previsualizan en la propia app; los PDF van directos al sistema (sin visor
+PDF propio, que añadiría una dependencia pesada). La app comprueba el límite de 10 MB antes de subir,
+pero el tipo lo decide la API por el contenido. La factura se consulta al abrir la ficha del gasto
+(`/invoice/metadata`) y no en la lista, que haría una petición por gasto. Los errores se muestran en la
+ficha y no en un SnackBar, que quedaría tapado por la hoja modal. **Consecuencia:** la lista de gastos no
+indica qué gastos tienen factura; para eso la API tendría que incluirlo en `ExpenseResponse`.
