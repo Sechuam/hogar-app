@@ -265,8 +265,6 @@ class PlanCard extends StatelessWidget {
 
   final PlanInfo plan;
 
-  static String _megabytes(int bytes) => '${(bytes / (1024 * 1024)).toStringAsFixed(1).replaceAll('.', ',')} MB';
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -298,7 +296,7 @@ class PlanCard extends StatelessWidget {
               ),
               _Usage(
                 label: 'Facturas',
-                value: '${_megabytes(plan.storageBytes)} de ${_megabytes(plan.maxStorageBytes!)}',
+                value: '${formatBytes(plan.storageBytes)} de ${formatBytes(plan.maxStorageBytes!)}',
                 ratio: plan.storageBytes / plan.maxStorageBytes!,
               ),
               if (plan.historyStart != null)

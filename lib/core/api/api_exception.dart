@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 /// Error de la API convertido desde su `ProblemDetail` (RFC 7807), o de red.
@@ -39,7 +41,7 @@ class ApiException implements Exception {
         message: 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
       );
     }
-    final data = response.data;
+    final data = _decode(response.data);
     final retryAfter = int.tryParse(response.headers.value('retry-after') ?? '');
     if (data is Map && data['code'] is String) {
       final errors = <String, String>{};
@@ -66,6 +68,18 @@ class ApiException implements Exception {
       status: response.statusCode,
       retryAfterSeconds: retryAfter,
     );
+  }
+
+  /// Las descargas binarias reciben también el ProblemDetail como bytes.
+  static Object? _decode(Object? data) {
+    if (data is! List<int>) {
+      return data;
+    }
+    try {
+      return jsonDecode(utf8.decode(data));
+    } on FormatException {
+      return null;
+    }
   }
 
   @override

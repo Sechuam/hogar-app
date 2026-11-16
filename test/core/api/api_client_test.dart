@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hogar_app/core/api/api_client.dart';
@@ -159,5 +161,42 @@ void main() {
     await client.get('/api/households/h/tasks', query: {'status': 'PENDING', 'assigneeId': null});
 
     expect(adapter.requests.single.queryParameters, {'status': 'PENDING'});
+  });
+
+  test('una subida multipart que recibe 401 se reintenta con un formulario nuevo', () async {
+    client = build(api);
+    await client.storeTokens(const AuthTokens(accessToken: 'caducado', refreshToken: 'refresh-1'));
+    var built = 0;
+
+    final result = await client.upload('/api/files', () {
+      built++;
+      return FormData.fromMap({
+        'file': MultipartFile.fromBytes([1, 2, 3], filename: 'ticket.pdf'),
+      });
+    });
+
+    expect(result, {'path': '/api/files'});
+    expect(built, 2, reason: 'un FormData ya enviado no se puede reenviar');
+    final sent = adapter.requests.where((r) => r.path == '/api/files').toList();
+    expect(sent, hasLength(2));
+    expect(sent.last.contentType, startsWith('multipart/form-data'));
+    expect((sent.last.data as FormData).files.single.value.filename, 'ticket.pdf');
+  });
+
+  test('getBytes devuelve el contenido binario y entiende el ProblemDetail de un error', () async {
+    client = build((r) async {
+      if (r.path == '/api/auth/refresh') {
+        return FakeResponse(200, auth('access-2', 'refresh-2'));
+      }
+      return r.path == '/api/ok'
+          ? FakeResponse(200, Uint8List.fromList([37, 80, 68, 70]))
+          : FakeResponse(404, problem('invoice-not-found', 404, detail: 'Sin factura'));
+    });
+
+    expect(await client.getBytes('/api/ok'), [37, 80, 68, 70]);
+    await expectLater(
+      client.getBytes('/api/missing'),
+      throwsA(isA<ApiException>().having((e) => e.code, 'code', 'invoice-not-found')),
+    );
   });
 }

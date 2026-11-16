@@ -11,6 +11,7 @@ import '../../auth/session_controller.dart';
 import '../../balances/data/balances_repository.dart';
 import '../../households/data/households_repository.dart';
 import '../../households/presentation/household_screen.dart';
+import '../../invoices/presentation/invoice_section.dart';
 import '../data/expenses_repository.dart';
 
 /// Gastos del hogar, los más recientes primero, con "cargar más".
@@ -188,7 +189,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     final delete = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
-      builder: (context) => _ExpenseDetails(expense: expense, members: members, canDelete: canDelete),
+      isScrollControlled: true,
+      builder: (context) => _ExpenseDetails(householdId: _id, expense: expense, members: members, canDelete: canDelete),
     );
     if (delete != true || !mounted) {
       return;
@@ -308,8 +310,14 @@ class _ExpenseTile extends StatelessWidget {
 }
 
 class _ExpenseDetails extends StatelessWidget {
-  const _ExpenseDetails({required this.expense, required this.members, required this.canDelete});
+  const _ExpenseDetails({
+    required this.householdId,
+    required this.expense,
+    required this.members,
+    required this.canDelete,
+  });
 
+  final String householdId;
   final Expense expense;
   final List<Member> members;
   final bool canDelete;
@@ -397,6 +405,8 @@ class _ExpenseDetails extends StatelessWidget {
                   ],
                 ),
               ),
+            // Quien puede borrar el gasto es quien puede tocar su factura (misma regla en la API).
+            InvoiceSection(householdId: householdId, expenseId: expense.id, canEdit: canDelete),
             if (canDelete) ...[
               const SizedBox(height: 20),
               OutlinedButton.icon(
